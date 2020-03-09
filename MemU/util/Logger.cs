@@ -3,12 +3,19 @@ using System.Threading;
 
 namespace memu.util
 {
-    class LOG
+    class Logger
     {
 
-        public static void Debug(string message)
+        private bool verboseLogging;
+
+        internal Logger(bool verboseLogging)
         {
-            if (MemU.VerboseLogging)
+            this.verboseLogging = verboseLogging;
+        }
+
+        public void Debug(string message)
+        {
+            if (verboseLogging)
             {
                 DateTime now = DateTime.Now;
                 string name = Thread.CurrentThread.Name;
@@ -17,7 +24,7 @@ namespace memu.util
             }
         }
 
-        public static void Info(string message)
+        public void Info(string message)
         {
             DateTime now = DateTime.Now;
             string name = Thread.CurrentThread.Name;

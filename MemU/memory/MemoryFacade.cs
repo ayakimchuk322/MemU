@@ -13,21 +13,28 @@ namespace memu.memory
         const int PROCESS_VM_OPERATION = 0x0008;
         //const int PROCESS_ALL_ACCESS = 0x1F0FFF; // ???
 
+        private readonly Logger logger;
 
-        internal static IntPtr OpenProcess(int processId)
+        internal MemoryFacade(Logger logger)
         {
-            IntPtr processHandle = Win32Memory.OpenProcess(MemoryFacade.PROCESS_VM_READ
-                | MemoryFacade.PROCESS_VM_WRITE
-                | MemoryFacade.PROCESS_VM_OPERATION,
+            this.logger = logger;
+        }
+
+
+        internal IntPtr OpenProcess(int processId)
+        {
+            IntPtr processHandle = Win32Memory.OpenProcess(PROCESS_VM_READ
+                | PROCESS_VM_WRITE
+                | PROCESS_VM_OPERATION,
                 false,
                 processId);
 
-            LOG.Info($"Opened handle #{processHandle} for process #{processId}");
+            logger.Info($"Opened handle #{processHandle} for process #{processId}");
 
             return processHandle;
         }
 
-        internal static IntPtr ReadPointer(IntPtr handle, IntPtr pointer)
+        internal IntPtr ReadPointer(IntPtr handle, IntPtr pointer)
         {
             byte[] buffer = new byte[IntPtr.Size];
             int bytesRead = 0;
@@ -36,12 +43,12 @@ namespace memu.memory
 
             var value = BitConverter.ToInt64(buffer, 0);
 
-            LOG.Debug($"Returning pointer 0x{value:X}");
+            logger.Debug($"Returning pointer 0x{value:X}");
 
             return new IntPtr(value);
         }
 
-        internal static int ReadInt32(IntPtr handle, IntPtr pointer)
+        internal int ReadInt32(IntPtr handle, IntPtr pointer)
         {
             byte[] buffer = new byte[4];
             int bytesRead = 0;
@@ -50,12 +57,12 @@ namespace memu.memory
 
             var value = BitConverter.ToInt32(buffer, 0);
 
-            LOG.Debug($"Returning int value {value}");
+            logger.Debug($"Returning int value {value}");
 
             return value;
         }
 
-        internal static long ReadInt64(IntPtr handle, IntPtr pointer)
+        internal long ReadInt64(IntPtr handle, IntPtr pointer)
         {
             byte[] buffer = new byte[8];
             int bytesRead = 0;
@@ -64,31 +71,31 @@ namespace memu.memory
 
             var value = BitConverter.ToInt64(buffer, 0);
 
-            LOG.Debug($"Returning long value {value}");
+            logger.Debug($"Returning long value {value}");
 
             return value;
         }
 
-        internal static void WriteInt32(IntPtr handle, IntPtr pointer, int value)
+        internal void WriteInt32(IntPtr handle, IntPtr pointer, int value)
         {
             byte[] buffer = BitConverter.GetBytes(value);
-            _Write(handle, pointer, value, buffer);
+            WriteValue(handle, pointer, value, buffer);
         }
 
-        internal static void WriteInt64(IntPtr handle, IntPtr pointer, long value)
+        internal void WriteInt64(IntPtr handle, IntPtr pointer, long value)
         {
             byte[] buffer = BitConverter.GetBytes(value);
-            _Write(handle, pointer, value, buffer);
+            WriteValue(handle, pointer, value, buffer);
         }
 
 
-        private static void _Write(IntPtr handle, IntPtr pointer, object value, byte[] buffer)
+        private void WriteValue(IntPtr handle, IntPtr pointer, object value, byte[] buffer)
         {
             int bytesWritten = 0;
 
             if (Win32Memory.WriteProcessMemory(handle, pointer, buffer, IntPtr.Size, ref bytesWritten))
             {
-                LOG.Debug($"Wrote value {value} to address {pointer}");
+                logger.Debug($"Wrote value {value} to address {pointer}");
             }
         }
     }

@@ -9,20 +9,26 @@ namespace memu
 {
     public class MemU
     {
-        public static bool VerboseLogging { get; set; } = false;
-
-        public IntPtr ProcessBaseAddress { get; set; }
+        public IntPtr ProcessBaseAddress { get; private set; }
         string ProcessName { get; set; }
         int ProcessId { get; set; }
         IntPtr ProcessHandle { get; set; }
 
 
-
         readonly string requestedProcess;
-        public MemU(string requestedProcess)
+        readonly MemoryFacade memoryFacade;
+        readonly Logger logger;
+
+
+        internal MemU(string requestedProcess,
+                      MemoryFacade memoryFacade,
+                      Logger logger)
         {
             this.requestedProcess = requestedProcess;
+            this.memoryFacade = memoryFacade;
+            this.logger = logger;
         }
+
 
         /// <summary>
         /// Attempts to attach to requested process.
@@ -30,15 +36,15 @@ namespace memu
         /// </summary>
         public void OpenProcess()
         {
-            LOG.Info($"Waiting for a process {requestedProcess}...");
+            logger.Info($"Waiting for a process {requestedProcess}...");
 
             WaitForProcess(out Process process);
 
             GatherProcessInfo(process);
 
-            LOG.Info($"Found process; name - {ProcessName}, id - {ProcessId}, base address - 0x{ProcessBaseAddress.ToInt64():X}");
+            logger.Info($"Found process; name - {ProcessName}, id - {ProcessId}, base address - 0x{ProcessBaseAddress.ToInt64():X}");
 
-            ProcessHandle = MemoryFacade.OpenProcess(ProcessId);
+            ProcessHandle = memoryFacade.OpenProcess(ProcessId);
         }
 
         /// <summary>
@@ -48,7 +54,7 @@ namespace memu
         /// <returns>Address pointer.</returns>
         public IntPtr ReadPointer(IntPtr target)
         {
-            return MemoryFacade.ReadPointer(ProcessHandle, target);
+            return memoryFacade.ReadPointer(ProcessHandle, target);
         }
 
         /// <summary>
@@ -64,7 +70,7 @@ namespace memu
 
             foreach (int offset in offsets)
             {
-                ptr = MemoryFacade.ReadPointer(ProcessHandle, IntPtr.Add(ptr, offset));
+                ptr = memoryFacade.ReadPointer(ProcessHandle, IntPtr.Add(ptr, offset));
             }
 
             return ptr;
@@ -73,25 +79,25 @@ namespace memu
         // TODO: add summary
         public int ReadInt32(IntPtr target)
         {
-            return MemoryFacade.ReadInt32(ProcessHandle, target);
+            return memoryFacade.ReadInt32(ProcessHandle, target);
         }
 
         // TODO: add summary
         public long ReadInt64(IntPtr target)
         {
-            return MemoryFacade.ReadInt64(ProcessHandle, target);
+            return memoryFacade.ReadInt64(ProcessHandle, target);
         }
 
         // TODO: add summary
         public void WriteInt32(IntPtr target, int value)
         {
-            MemoryFacade.WriteInt32(ProcessHandle, target, value);
+            memoryFacade.WriteInt32(ProcessHandle, target, value);
         }
 
         // TODO: add summary
         public void WriteInt64(IntPtr target, long value)
         {
-            MemoryFacade.WriteInt64(ProcessHandle, target, value);
+            memoryFacade.WriteInt64(ProcessHandle, target, value);
         }
 
         // TODO: add summary
@@ -118,6 +124,41 @@ namespace memu
             ProcessName = process.ProcessName;
             ProcessId = process.Id;
             ProcessBaseAddress = process.MainModule.BaseAddress;
+        }
+    }
+
+
+    public class MemUFactory
+    {
+
+        private static MemUFactory factory;
+
+
+        private MemoryFacade memoryFacade;
+        private Logger logger;
+
+
+        public static MemUFactory GetFactory()
+        {
+            if (factory == null)
+            {
+                factory = new MemUFactory();
+            }
+            return factory;
+        }
+
+
+        public string ProcessName { get; set; }
+        public bool VerboseLogging { get; set; }
+
+        public MemU Build()
+        {
+            logger = new Logger(VerboseLogging);
+            memoryFacade = new MemoryFacade(logger);
+
+            MemU memu = new MemU(ProcessName, memoryFacade, logger);
+
+            return memu;
         }
     }
 }
